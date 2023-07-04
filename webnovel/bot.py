@@ -31,7 +31,7 @@ class WebnovelBot:
     min_timeout = 10
     user_timeout = 600
 
-    def __init__(self, driver: WebDriver = None, timeout=10):
+    def __init__(self, driver: Union[WebDriver, None]=None, timeout=10):
         """
         :param driver: selenium web driver to use
         :param timeout: timeout for all class operations
@@ -102,7 +102,10 @@ class WebnovelBot:
 
         # generate dictionary using field_mapper as title value
         profile_data = {
-            field: int(self.driver.find_element_by_css_selector(f"a[title='{value}'] > em").text)
+            field: int(self.driver.find_element(
+                By.CSS_SELECTOR,
+                f"a[title='{value}'] > em"
+            ) .text)
             for field, value in field_mapper.items()
         }
 
@@ -121,10 +124,10 @@ class WebnovelBot:
         # go to login path
         self.driver.get(EMAIL_LOGIN_URL)
 
-        self.driver.find_element_by_class_name('loginEmail').send_keys(email)
-        self.driver.find_element_by_class_name('loginPass').send_keys(password)
+        self.driver.find_element(By.CLASS_NAME, 'loginEmail').send_keys(email)
+        self.driver.find_element(By.CLASS_NAME, 'loginPass').send_keys(password)
 
-        signin_btn = self.driver.find_element_by_id('submit')
+        signin_btn = self.driver.find_element(By.ID, 'submit')
         signin_btn.click()
 
         wait = WebDriverWait(self.driver, self.timeout)
@@ -133,11 +136,11 @@ class WebnovelBot:
         # wait until redirected
         wait.until(lambda driver: (
                 not self.driver.current_url.startswith(EMAIL_RAW_URL)
-                or driver.find_elements_by_css_selector('#google-code-html iframe')  # checks if captcha appeared
+                or driver.find_elements(By.CSS_SELECTOR, '#google-code-html iframe')  # checks if captcha appeared
         ))
 
         # this handles the cases where the captcha has appeared
-        captchas = self.driver.find_elements_by_css_selector('#google-code-html iframe')
+        captchas = self.driver.find_elements(By.CSS_SELECTOR, '#google-code-html iframe')
         if len(captchas) > 0:
             if not manual:
                 raise CaptchaException
@@ -160,10 +163,10 @@ class WebnovelBot:
         # wait for the preferences popup to load and click it away
         try:
             wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".j_post_preference"))
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".j_drop_preference"))
             )
 
-            pref_button = self.driver.find_element_by_class_name('j_post_preference')  # bt _m mw160 j_post_preference
+            pref_button = self.driver.find_element(By.CLASS_NAME, 'j_drop_preference')  # bt _m mw160 j_post_preference
             pref_button.click()
         except TimeoutException:
             pass
@@ -189,7 +192,7 @@ class WebnovelBot:
         self._focus_profile()
 
         # click and out
-        signout_button = self.driver.find_element_by_css_selector("a[class*='j_logout']")
+        signout_button = self.driver.find_element(By.CSS_SELECTOR, "a[class*='j_logout']")
         signout_button.click()
 
         # wait till logged out
@@ -219,11 +222,11 @@ class WebnovelBot:
             self.driver.get(f'{BASE_URL}/library')
 
         # all novel containers
-        novel_elements = self.driver.find_elements_by_css_selector('.lib-books > li')
+        novel_elements = self.driver.find_elements(By.CSS_SELECTOR, '.lib-books > li')
 
         novels = []
         for element in novel_elements:
-            link = element.find_element_by_css_selector('a')
+            link = element.find_element(By.CSS_SELECTOR, 'a')
 
             novel = Novel(
                 title=link.text,
@@ -244,28 +247,28 @@ class WebnovelBot:
         :param url: url to novel
         :return: Novel object
         """
-        info_elems = self.driver.find_elements_by_css_selector('._mn > *')
-        subinfo_elems = info_elems[1].find_elements_by_css_selector(':scope > *')
-        writerinfo_elems = info_elems[2].find_elements_by_css_selector('p > *')
+        info_elems = self.driver.find_elements(By.CSS_SELECTOR, '._mn > *')
+        subinfo_elems = info_elems[1].find_elements(By.CSS_SELECTOR, ':scope > *')
+        writerinfo_elems = info_elems[2].find_elements(By.CSS_SELECTOR, 'p > *')
 
         novel = Novel()
 
         novel.id = self.driver.current_url.split('/')[4]
-        novel.title = info_elems[0].text[:-len(info_elems[0].find_element_by_tag_name('small').text) - 1],
+        novel.title = info_elems[0].text[:-len(info_elems[0].find_element(By.TAG_NAME, 'small').text) - 1],
         novel.title = novel.title[0]
 
-        novel.synopsis = self.driver.find_element_by_css_selector("div[class*='j_synopsis'] > p").text
+        novel.synopsis = self.driver.find_element(By.CSS_SELECTOR, "div[class*='j_synopsis'] > p").text
         novel.genre = subinfo_elems[0].text,
         novel.views = subinfo_elems[-1].text[:-6],
         novel.url = self.driver.current_url
         novel.cover_url = f'https://img.webnovel.com/bookcover/{novel.id}'
 
         # ratings are posted up to 5, they are converted to float and normalized to 1
-        novel.rating = float(info_elems[3].find_element_by_css_selector('strong').text) / 5.0,
+        novel.rating = float(info_elems[3].find_element(By.CSS_SELECTOR, 'strong').text) / 5.0,
 
         # stripped of all non numerals and converted to int
         novel.review_count = int(
-            info_elems[3].find_element_by_css_selector('small').text.strip('()')[:-8].replace(',', ''))
+            info_elems[3].find_element(By.CSS_SELECTOR, 'small').text.strip('()')[:-8].replace(',', ''))
 
         # writer info
         for i in range(round(len(writerinfo_elems) / 2)):
@@ -284,7 +287,7 @@ class WebnovelBot:
         """
 
         # load table of contents
-        table_of_contents = self.driver.find_element_by_css_selector('a.j_show_contents')
+        table_of_contents = self.driver.find_element(By.CSS_SELECTOR, 'a.j_show_contents')
         table_of_contents.click()
 
         # wait until table of contents loads
@@ -346,32 +349,32 @@ class WebnovelBot:
             )
 
         chapter = Chapter(
-            no=int(self.driver.find_element_by_css_selector('.j_chapIdx').text.strip('Chapter ')[:-1]),
+            no=int(self.driver.find_element(By.CSS_SELECTOR, '.j_chapIdx').text.strip('Chapter ')[:-1]),
             url=self.driver.current_url,
-            title=self.driver.find_element_by_css_selector('.cha-tit').find_element_by_tag_name('h3').text,
+            title=self.driver.find_element(By.CSS_SELECTOR, '.cha-tit').find_element(By.TAG_NAME, 'h3').text,
             locked=self.is_chapter_locked(),
         )
 
         if chapter.locked:
             if self.is_signedin():
-                unlock_params = self.driver.find_element_by_css_selector(
+                unlock_params = self.driver.find_element(By.CSS_SELECTOR, 
                     "div[class*='lock-group j_lock_btns '] > a[class*='j_unlockChapter']"
                 ).get_attribute('data-unlock-params')
             else:
-                unlock_params = self.driver.find_element_by_css_selector(
+                unlock_params = self.driver.find_element(By.CSS_SELECTOR, 
                     "div[class*='lock-group j_lock_btns '] > a[class*='_bt_unlock']"
                 ).get_attribute('data-unlock-params')
 
             chapter.cost = json.loads(unlock_params)['chapterPrice']
         else:
             chapter.paragraphs = [wrapper.text
-                                  for wrapper in self.driver.find_elements_by_css_selector('.cha-paragraph > span > p')]
+                                  for wrapper in self.driver.find_elements(By.CSS_SELECTOR, '.cha-paragraph > span > p')]
 
         return chapter
 
     @redirect
     def is_chapter_locked(self, url=None):
-        return bool(self.driver.find_elements_by_css_selector('.j_locked_chap'))
+        return bool(self.driver.find_elements(By.CSS_SELECTOR, '.j_locked_chap'))
 
     def unlock_chapter(self, url=None, coins=False, fastpass=False, unlock_delay=2):
         """
@@ -410,14 +413,14 @@ class WebnovelBot:
         # coins
         try:
             can_coin = True
-            self.driver.find_element_by_css_selector("div[class='lock-group j_lock_btns ']")
+            self.driver.find_element(By.CSS_SELECTOR, "div[class='lock-group j_lock_btns ']")
         except NoSuchElementException:
             can_coin = False
 
         # fastpass
         try:
             can_fastpass = True
-            self.driver.find_element_by_css_selector("div[class^='lock-foot'] > div:nth-child(2) > a")
+            self.driver.find_element(By.CSS_SELECTOR, "div[class^='lock-foot'] > div:nth-child(2) > a")
         except NoSuchElementException:
             can_fastpass = False
 
@@ -428,12 +431,12 @@ class WebnovelBot:
             ActionChains(self.driver).move_to_element(button).pause(unlock_delay).click().perform()
 
         if coins and can_coin:
-            coin_button = self.driver.find_element_by_css_selector(
+            coin_button = self.driver.find_element(By.CSS_SELECTOR, 
                 "div[class='lock-group j_lock_btns '] > a[class*='j_unlockChapter']")
             unlock(coin_button)
 
         elif fastpass and can_fastpass:
-            fastpass_button = self.driver.find_element_by_css_selector("div[class^='lock-foot'] > div:nth-child(2) > a")
+            fastpass_button = self.driver.find_element(By.CSS_SELECTOR, "div[class^='lock-foot'] > div:nth-child(2) > a")
             unlock(fastpass_button)
 
     def batch_unlock(self, analysis, selenium=False):
@@ -502,8 +505,8 @@ class WebnovelBot:
         elif type(votes) == int:
             indexes = range(votes)
 
-        lead_list = self.driver.find_element_by_css_selector(f'#List{lead.capitalize()}')
-        vote_buttons = lead_list.find_elements_by_css_selector('.j_canVote._voteBtn')
+        lead_list = self.driver.find_element(By.CSS_SELECTOR, f'#List{lead.capitalize()}')
+        vote_buttons = lead_list.find_elements(By.CSS_SELECTOR, '.j_canVote._voteBtn')
 
         # this checks whether user can vote / has energy stones
         if not vote_buttons:
@@ -532,7 +535,7 @@ class WebnovelBot:
         )
 
         # claim all rewards
-        for claim in self.driver.find_elements_by_css_selector('.j_claim_task'):
+        for claim in self.driver.find_elements(By.CSS_SELECTOR, '.j_claim_task'):
             claim.click()
 
         # exit
@@ -567,7 +570,7 @@ class WebnovelBot:
         # get power stone energy_vote button
         # exception is thrown when user has no power stones
         try:
-            power_button = self.driver.find_element_by_css_selector(".j_vote_power._on")
+            power_button = self.driver.find_element(By.CSS_SELECTOR, ".j_vote_power._on")
         except NoSuchElementException:
             return
 
@@ -590,7 +593,7 @@ class WebnovelBot:
 
         :return: profile button element
         """
-        profile_button = self.driver.find_element_by_css_selector("div[class^='g_user'][class*='g_dropdown']")
+        profile_button = self.driver.find_element(By.CSS_SELECTOR, "div[class^='g_user'][class*='g_dropdown']")
 
         # even though the exception is thrown (with good reason) it seems to open profile
         try:
